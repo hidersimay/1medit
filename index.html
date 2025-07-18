@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Quản lý khách hàng</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f2f2f2; }
+    td[contenteditable="true"] { background: #fffbe6; }
+    .save-btn { background: #4caf50; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+    .delete-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+    .save-btn:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-container { text-align: center; margin-top: 15px; }
+    #add-btn { background: #3498db; color: white; border: none; padding: 8px 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Danh sách khách hàng</h1>
+
+  <table id="customer-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Tên</th>
+        <th>SĐT</th>
+        <th>Mã đặt bàn</th>
+        <th>QR URL</th>
+        <th>Trạng thái</th>
+        <th>Thời gian thêm</th>
+        <th>Lưu</th>
+        <th>Xóa</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Nút thêm ở dưới bảng -->
+  <div class="btn-container">
+    <button id="add-btn">+ Thêm khách hàng</button>
+  </div>
+
+  <script>
+    const apiUrl = 'https://680dcc99c47cb8074d913873.mockapi.io/KhachHang';
+    let customers = [];
+
+    // Lấy dữ liệu và render bảng
+    async function fetchData() {
+      const res = await fetch(apiUrl);
+      customers = await res.json();
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector('#customer-table tbody');
+      tbody.innerHTML = '';
+
+      customers.forEach(c => {
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+          <td>${c.id}</td>
+          <td contenteditable="true" data-field="name">${c.name || ''}</td>
+          <td contenteditable="true" data-field="phone">${c.phone || ''}</td>
+          <td contenteditable="true" data-field="madatban">${c.madatban || ''}</td>
+          <td contenteditable="true" data-field="qrUrl">${c.qrUrl || ''}</td>
+          <td contenteditable="true" data-field="status">${c.status ? 'true' : 'false'}</td>
+          <td>${c.createdAt || ''}</td>
+          <td><button class="save-btn" disabled>Lưu</button></td>
+          <td><button class="delete-btn">Xóa</button></td>
+        `;
+
+        // Kích hoạt nút Lưu khi sửa ô
+        row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
+          cell.addEventListener('input', () => {
+            row.querySelector('.save-btn').disabled = false;
+          });
+        });
+
+        // Nút lưu -> PUT
+        row.querySelector('.save-btn').addEventListener('click', async () => {
+          const updated = {
+            ...c,
+            name: row.querySelector('[data-field="name"]').innerText.trim(),
+            phone: row.querySelector('[data-field="phone"]').innerText.trim(),
+            madatban: row.querySelector('[data-field="madatban"]').innerText.trim(),
+            qrUrl: row.querySelector('[data-field="qrUrl"]').innerText.trim(),
+            status: row.querySelector('[data-field="status"]').innerText.trim() === 'true'
+          };
+
+          await fetch(`${apiUrl}/${c.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated)
+          });
+
+          row.querySelector('.save-btn').disabled = true;
+        });
+
+        // Nút xóa -> DELETE (không hỏi)
+        row.querySelector('.delete-btn').addEventListener('click', async () => {
+          await fetch(`${apiUrl}/${c.id}`, { method: 'DELETE' });
+          fetchData(); // reload bảng
+        });
+
+        tbody.appendChild(row);
+      });
+    }
+
+    // Hàm lấy thời gian hiện tại dạng DD/MM/YYYY HH:MM:SS
+    function getCurrentTime() {
+      const now = new Date();
+      return now.toLocaleString('vi-VN', { hour12: false });
+    }
+
+    // Thêm khách hàng mới (POST không hỏi)
+    async function addCustomer() {
+      const newCustomer = {
+        name: "",
+        phone: "",
+        madatban: "",
+        qrUrl: "",
+        status: false,
+        createdAt: getCurrentTime()
+      };
+
+      await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCustomer)
+      });
+
+      fetchData(); // reload lại bảng
+    }
+
+    // Gắn sự kiện
+    document.getElementById('add-btn').addEventListener('click', addCustomer);
+    fetchData();
+  </script>
+</body>
+</html>
